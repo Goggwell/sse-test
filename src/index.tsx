@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { html } from "hono/html";
 import { streamSSE } from "hono/streaming";
+import { jsxRenderer } from "hono/jsx-renderer";
 
 const app = new Hono();
 
@@ -13,7 +15,34 @@ app.use(
   })
 );
 
-app.get("/", (c) => c.text("Hello Hono!"));
+app.get(
+  "*",
+  jsxRenderer(
+    ({ children }) => {
+      return (
+        <html>
+          <head>
+            {html`
+              <script>
+                const source = new EventSource("http://localhost:8787/sse");
+                source.addEventListener("time-update", (e) => {
+                  document.getElementById("title").innerHTML = e.data;
+                });
+              </script>
+            `}
+          </head>
+          <body>
+            <h1>SSE</h1>
+            <main>{children}</main>
+          </body>
+        </html>
+      );
+    },
+    { stream: true }
+  )
+);
+
+app.get("/", async (c) => await c.render(<h2 id="title">welcome</h2>));
 
 /**
  * set up headers for server sent events routes
